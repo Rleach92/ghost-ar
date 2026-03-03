@@ -48,8 +48,9 @@
       .instruction {
         background: rgba(0,0,0,0.85); color: #00ffff;
         padding: 12px 30px; border-radius: 50px;
-        display: inline-block; border: 1px solid rgba(0,255,255,0.4);
+        display: inline-block; border: 2px solid rgba(0,255,255,0.4);
         text-transform: uppercase; letter-spacing: 2px; font-size: 12px;
+        transition: all 0.3s ease;
       }
 
       #debug-log {
@@ -77,13 +78,9 @@
       <div class="instruction">Calibrating spectral lens...</div>
     </div>
 
-    <!-- 
-      MindAR Settings: 
-      Increased warmupTolerance and adjusted filter for high-sensitivity detection.
-    -->
     <a-scene 
       id="main-scene"
-      mindar-image="autoStart: false; uiLoading: yes; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 10; missTolerance: 10;" 
+      mindar-image="autoStart: false; uiLoading: yes; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 15; missTolerance: 30;" 
       color-space="sRGB" 
       embedded
       renderer="colorManagement: true, physicallyCorrectLights, alpha: true" 
@@ -101,13 +98,12 @@
             <a-gltf-model 
               id="ghost-mesh"
               src="#ghostModel" 
-              position="0 0 0.1" 
+              position="0 0 0.2" 
               scale="0.8 0.8 0.8"
-              animation="property: position; to: 0 0.3 0.4; dir: alternate; dur: 2500; loop: true; easing: easeInOutSine"
+              animation="property: position; to: 0 0.3 0.5; dir: alternate; dur: 2500; loop: true; easing: easeInOutSine"
               animation__rotate="property: rotation; to: 0 360 0; dur: 12000; easing: linear; loop: true"
             ></a-gltf-model>
 
-            <!-- Stable Mist Effect -->
             <a-entity id="mist-cloud" position="0 0 0.1">
               <a-sphere position="0.3 0.2 0.2" radius="0.06" color="#00ffff" opacity="0.25"></a-sphere>
               <a-sphere position="-0.4 0.4 -0.1" radius="0.09" color="#ffffff" opacity="0.15"></a-sphere>
@@ -142,8 +138,11 @@
             
             log("STREAM AUTHORIZED.");
             
+            // CACHE BUSTING: Add a timestamp to the URL to force GitHub to serve the newest file
             const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-            const targetsPath = currentPath + 'targets.mind';
+            const targetsPath = currentPath + 'targets.mind?v=' + Date.now();
+            
+            log("TARGET FILE: targets.mind");
             
             sceneEl.setAttribute('mindar-image', `imageTargetSrc: ${targetsPath}; autoStart: false; uiLoading: yes; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001;`);
 
@@ -164,7 +163,6 @@
             log("ENGAGING SCANNER...");
             sceneEl.play();
             
-            // 1 second warmup for focus
             setTimeout(() => {
                 arSystem.start();
                 log("SCANNER ACTIVE. ALIGN WITH TARGET.");
@@ -173,7 +171,7 @@
                   if (overlay.style.display !== 'none') {
                     overlay.style.display = 'none';
                     uiOverlay.style.display = 'block';
-                    document.querySelector('.instruction').innerText = "Scanning for Ectoplasm...";
+                    document.querySelector('.instruction').innerText = "Searching for Ectoplasm...";
                   }
                 }, 1000);
             }, 1000);
@@ -185,7 +183,7 @@
       });
 
       sceneEl.addEventListener("arError", (err) => {
-        log("TARGET FILE ERROR.", true);
+        log("TARGET FILE ERROR: Not found or corrupted.", true);
       });
 
       sceneEl.addEventListener("targetFound", () => {
@@ -199,7 +197,7 @@
 
       sceneEl.addEventListener("targetLost", () => {
         const instr = document.querySelector('.instruction');
-        instr.innerText = "Scanning for Ectoplasm...";
+        instr.innerText = "Searching for Ectoplasm...";
         instr.style.borderColor = "#00ffff";
         instr.style.color = "#00ffff";
         instr.style.boxShadow = "none";
