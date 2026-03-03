@@ -62,9 +62,6 @@
       <div class="instruction">Scanning for Ectoplasm...</div>
     </div>
 
-    <!-- 
-      We set the imageTargetSrc via JS to ensure it's absolute
-    -->
     <a-scene 
       id="main-scene"
       mindar-image="autoStart: false; uiLoading: yes; uiScanning: no;" 
@@ -75,7 +72,6 @@
       
       <a-assets>
         <a-asset-item id="ghostModel" src="https://vazxmixjsiawhamofvyt.supabase.co/storage/v1/object/public/models/ghost/model.gltf"></a-asset-item>
-        <audio id="ghostSound" src="https://cdn.pixabay.com/audio/2022/10/30/audio_55a2998782.mp3" preload="auto" loop="true"></audio>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -90,14 +86,14 @@
               animation="property: position; to: 0 -0.2 0.1; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
             ></a-gltf-model>
 
-            <!-- Mist Effect -->
+            <!-- Mist Effect using spheres for stability -->
             <a-entity id="mist-cloud" position="0 0 0" animation="property: rotation; to: 0 360 0; dur: 10000; easing: linear; loop: true">
               <a-sphere position="0.4 0.1 0.2" radius="0.05" color="#00ffff" opacity="0.3"
                 animation="property: position; to: 0.4 0.3 0.2; dir: alternate; dur: 2500; loop: true"></a-sphere>
               <a-sphere position="-0.3 0.5 -0.1" radius="0.08" color="#ffffff" opacity="0.2"
                 animation="property: position; to: -0.3 0.2 -0.1; dir: alternate; dur: 3000; loop: true"></a-sphere>
               <a-sphere position="0.1 -0.2 0.4" radius="0.04" color="#00ffff" opacity="0.4"
-                animation="property: position; to: 0.1 0.1 0.4; dir: alternate; dur: 1800; loop: true"></a-sphere>
+                animation="property: position; to: 0.1 0.1 0.4; dur: 1800; loop: true"></a-sphere>
             </a-entity>
 
             <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff">
@@ -113,45 +109,42 @@
       const debugLog = document.querySelector('#debug-log');
       const overlay = document.querySelector('#overlay');
       const uiOverlay = document.querySelector('#ui-overlay');
-      const sound = document.querySelector('#ghostSound');
 
       function log(msg, isError = false) {
         const timestamp = new Date().toLocaleTimeString().split(' ')[0];
         debugLog.innerHTML += `<br><span class="${isError ? 'error' : ''}">[${timestamp}] ${msg}</span>`;
+        console.log(`[${timestamp}] ${msg}`);
       }
 
       startBtn.addEventListener('click', () => {
         log("USER GESTURE RECEIVED");
         startBtn.style.display = 'none';
         
-        // 1. Resolve Path Safely
-        const currentUrl = window.location.href;
-        const basePath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
-        const targetsPath = basePath + "targets.mind";
-        
-        log("PATH SET: targets.mind");
+        // Construct the absolute path to targets.mind more robustly
+        let targetsPath = "targets.mind";
+        try {
+            const url = new URL('targets.mind', window.location.href);
+            targetsPath = url.href;
+            log("RESOLVED PATH: " + targetsPath);
+        } catch (e) {
+            log("PATH WARNING: Using literal string", true);
+        }
 
-        // Set attributes BEFORE starting
+        // Set attributes and boot AR
         sceneEl.setAttribute('mindar-image', `imageTargetSrc: ${targetsPath}; autoStart: false; uiLoading: yes; uiScanning: no;`);
-
-        // 2. Unlock Audio with a promise check
-        log("UNLOCKING AUDIO...");
-        sound.play().then(() => {
-            sound.pause();
-            sound.currentTime = 0;
-            log("AUDIO READY.");
-            // 3. ONLY start AR after audio is definitely handled
+        
+        if (sceneEl.hasLoaded) {
             bootAR();
-        }).catch(e => {
-            log("AUDIO BLOCKED (SILENT MODE)", true);
-            bootAR(); // Proceed anyway
-        });
+        } else {
+            sceneEl.addEventListener('loaded', bootAR);
+        }
       });
 
       function bootAR() {
         log("REQUESTING CAMERA...");
         
-        const executeStart = () => {
+        // Small delay to ensure attributes have been parsed by MindAR component
+        setTimeout(() => {
             const arSystem = sceneEl.systems['mindar-image-system'];
             if (arSystem) {
                 try {
@@ -159,17 +152,12 @@
                     log("SCANNER ACTIVE.");
                 } catch (err) {
                     log("HARDWARE ERROR: " + err.message, true);
+                    console.error(err);
                 }
             } else {
                 log("CORE COMPONENT MISSING", true);
             }
-        };
-
-        if (sceneEl.hasLoaded) {
-            executeStart();
-        } else {
-            sceneEl.addEventListener('loaded', executeStart);
-        }
+        }, 100);
       }
 
       sceneEl.addEventListener("arReady", () => {
@@ -179,17 +167,16 @@
       });
 
       sceneEl.addEventListener("arError", (err) => {
-        log("FETCH FAILED: Check targets.mind on GitHub", true);
+        log("FETCH FAILED: Check targets.mind file availability", true);
+        console.error("MindAR Error:", err);
       });
 
       sceneEl.addEventListener("targetFound", () => {
         document.querySelector('.instruction').innerText = "GHOST DETECTED!";
-        sound.play().catch(() => {});
       });
 
       sceneEl.addEventListener("targetLost", () => {
         document.querySelector('.instruction').innerText = "Scanning for Ectoplasm...";
-        sound.pause();
       });
     </script>
   </body>
