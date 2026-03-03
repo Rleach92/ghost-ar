@@ -24,10 +24,7 @@
         background: #00ffff; border: none; border-radius: 50px;
         color: black; font-weight: bold; margin-top: 25px;
         box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
-        transition: all 0.2s;
       }
-
-      #start-btn:active { transform: scale(0.95); }
 
       #ui-overlay {
         position: absolute; bottom: 30px; left: 0; right: 0;
@@ -40,15 +37,12 @@
         padding: 12px 30px; border-radius: 50px;
         display: inline-block; border: 1px solid #00ffff;
         text-transform: uppercase; letter-spacing: 2px;
-        font-size: 14px;
       }
 
       #status-msg {
         color: #00ffff; margin-top: 20px; font-size: 14px; 
         font-weight: 300; letter-spacing: 1px;
       }
-
-      .error-msg { color: #ff4444 !important; font-weight: bold !important; }
     </style>
   </head>
   <body>
@@ -64,12 +58,8 @@
       <div class="instruction">Scanning for spirits...</div>
     </div>
 
-    <!-- 
-      MindAR Image Tracking
-      Using 'targets.mind' - ensure this file is in the same folder as index.html
-    -->
     <a-scene 
-      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
+      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: yes; uiScanning: no;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -86,7 +76,6 @@
 
       <a-entity mindar-image-target="targetIndex: 0">
         <a-entity id="ghost-container" class="clickable">
-          
           <a-gltf-model 
             id="ghost-mesh"
             src="#ghostModel" 
@@ -112,84 +101,51 @@
       const statusMsg = document.querySelector('#status-msg');
       const overlay = document.querySelector('#overlay');
       const uiOverlay = document.querySelector('#ui-overlay');
-      const instruction = document.querySelector('.instruction');
-      const ghostMesh = document.querySelector('#ghost-mesh');
       const sound = document.querySelector('#ghostSound');
 
-      startBtn.addEventListener('click', async () => {
-        statusMsg.innerText = "REQUESTING CAMERA ACCESS...";
+      startBtn.addEventListener('click', () => {
+        statusMsg.innerText = "STARTING SENSORS...";
         startBtn.style.display = 'none';
         
-        try {
-          // Explicitly wait for camera permission before starting AR
-          // This is necessary for mobile browsers to allow the stream
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          
-          statusMsg.innerText = "LOADING SPECTRAL DATA...";
-          
-          // Wait for the scene to be loaded before accessing systems
-          if (sceneEl.hasLoaded) {
-            initAR();
-          } else {
-            sceneEl.addEventListener('loaded', initAR);
+        // Let MindAR handle the camera request itself
+        const startAR = () => {
+          const arSystem = sceneEl.systems['mindar-image-system'];
+          if (arSystem) {
+            arSystem.start();
           }
-          
-        } catch (err) {
-          console.error("Camera Error:", err);
-          statusMsg.innerText = "ERROR: CAMERA PERMISSION DENIED";
-          statusMsg.classList.add('error-msg');
+        };
+
+        if (sceneEl.hasLoaded) {
+          startAR();
+        } else {
+          sceneEl.addEventListener('loaded', startAR);
         }
+
+        // Handle Audio Unlock
+        sound.play().then(() => {
+          sound.pause();
+          sound.currentTime = 0;
+        }).catch(() => {});
       });
 
-      function initAR() {
-        // Fix: accessing systems safely. MindAR system might not be immediately ready.
-        const arSystem = sceneEl.systems['mindar-image-system'];
-        if (arSystem) {
-            arSystem.start(); 
-        } else {
-            // Fallback for some component race conditions
-            setTimeout(() => {
-                const retrySystem = sceneEl.systems['mindar-image-system'];
-                if (retrySystem) retrySystem.start();
-            }, 100);
-        }
-        
-        // Audio unlock for mobile
-        sound.play().then(() => { sound.pause(); sound.currentTime = 0; }).catch(() => {});
-      }
-
-      // AR System ready event
       sceneEl.addEventListener("arReady", () => {
         overlay.style.display = 'none';
         uiOverlay.style.display = 'block';
       });
 
-      // AR System error event
-      sceneEl.addEventListener("arError", (event) => {
-        statusMsg.innerText = "FILE ERROR: COULD NOT LOAD TARGETS.MIND";
-        statusMsg.classList.add('error-msg');
-        console.error("AR Error:", event);
+      sceneEl.addEventListener("arError", (err) => {
+        statusMsg.innerText = "ERROR: CAMERA OR FILE ISSUE";
+        console.error("AR Error", err);
       });
 
-      sceneEl.addEventListener("targetFound", event => {
-        instruction.innerText = "SIGHTING CONFIRMED!";
-        instruction.style.color = "#ff4444";
+      sceneEl.addEventListener("targetFound", () => {
+        document.querySelector('.instruction').innerText = "SIGHTING CONFIRMED!";
         sound.play();
       });
 
-      sceneEl.addEventListener("targetLost", event => {
-        instruction.innerText = "Scanning for spirits...";
-        instruction.style.color = "#00ffff";
+      sceneEl.addEventListener("targetLost", () => {
+        document.querySelector('.instruction').innerText = "Scanning for spirits...";
         sound.pause();
-      });
-
-      document.querySelector('#ghost-container').addEventListener('click', () => {
-        instruction.innerText = "THE SPIRIT IS AGITATED!";
-        ghostMesh.setAttribute('animation__shake', 'property: rotation; to: 0 360 0; dur: 400; easing: easeInOutQuad');
-        setTimeout(() => {
-          ghostMesh.removeAttribute('animation__shake');
-          instruction.innerText = "SIGHTING CONFIRMED!";
-        }, 1000);
       });
     </script>
   </body>
