@@ -3,138 +3,141 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ghost Hunter AR</title>
-    <!-- We are using A-Frame for 3D and MindAR for the AR tracking -->
+    <!-- A-Frame and MindAR -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; }
+      
+      /* Start Overlay to unlock audio/camera */
+      #overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        z-index: 200; color: white; text-align: center;
+      }
+      #start-btn {
+        padding: 15px 40px; font-size: 20px; cursor: pointer;
+        background: #00ffff; border: none; border-radius: 30px;
+        color: black; font-weight: bold; margin-top: 20px;
+        box-shadow: 0 0 20px #00ffff;
+      }
+
       #ui-overlay {
-        position: absolute;
-        bottom: 20px;
-        left: 0;
-        right: 0;
-        text-align: center;
-        z-index: 100;
-        pointer-events: none;
+        position: absolute; bottom: 30px; left: 0; right: 0;
+        text-align: center; z-index: 100; pointer-events: none;
+        display: none; /* Hidden until started */
       }
       .instruction {
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 25px;
-        display: inline-block;
-        transition: all 0.3s ease;
+        background: rgba(0,0,0,0.8); color: white;
+        padding: 12px 25px; border-radius: 50px;
+        display: inline-block; transition: all 0.3s ease;
+        border: 1px solid #444;
       }
-      /* Custom styles for the scanning UI */
       .scanning .instruction {
-        border: 2px solid #00ffff;
-        box-shadow: 0 0 15px #00ffff;
+        border-color: #00ffff; box-shadow: 0 0 15px #00ffff;
+        color: #00ffff;
       }
     </style>
   </head>
   <body>
 
-    <!-- Instruction Overlay -->
-    <div id="ui-overlay">
-      <div class="instruction">Scan your custom target to reveal the spirit...</div>
+    <div id="overlay">
+      <h1>GHOST HUNTER AR</h1>
+      <p>Ensure your sound is on for the full experience.</p>
+      <button id="start-btn">BEGIN SEARCH</button>
     </div>
 
-    <!-- 
-      A-Scene Configuration
-      - imageTargetSrc updated to use an absolute URL to resolve fetch errors in certain environments.
-    -->
+    <div id="ui-overlay">
+      <div class="instruction">Scanning for spirits...</div>
+    </div>
+
     <a-scene 
-      mindar-image="imageTargetSrc: targets.mind;" 
+      mindar-image="imageTargetSrc: targets.mind; autoStart: false;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
       
       <a-assets>
-        <!-- Spooky Sound Asset -->
+        <!-- Realistic 3D Ghost Model (GLB) -->
+        <a-asset-item id="ghostModel" src="https://vazxmixjsiawhamofvyt.supabase.co/storage/v1/object/public/models/ghost/model.gltf"></a-asset-item>
+        <!-- Spooky Ambient Sound -->
         <audio id="ghostSound" src="https://cdn.pixabay.com/audio/2022/10/30/audio_55a2998782.mp3" preload="auto"></audio>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false">
-        <!-- The cursor allows us to "click" or "tap" things in AR -->
         <a-cursor fuse="false" raycaster="objects: .clickable"></a-cursor>
       </a-camera>
 
-      <!-- Target Index 0 -->
       <a-entity mindar-image-target="targetIndex: 0">
-        
-        <a-entity id="ghost-group" position="0 0 0" class="clickable">
-          
-          <!-- Spooky Floating Body -->
-          <a-sphere id="ghost-body" 
-                    position="0 0.4 0" radius="0.3" color="#ffffff" opacity="0.6" 
-                    animation="property: position; to: 0 0.6 0; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine">
-          </a-sphere>
-          
-          <!-- Eyes -->
-          <a-sphere position="-0.1 0.5 0.25" radius="0.04" color="black"></a-sphere>
-          <a-sphere position="0.1 0.5 0.25" radius="0.04" color="black"></a-sphere>
-          
-          <!-- Ethereal Trail -->
-          <a-cone position="0 0.1 0" radius-bottom="0.3" radius-top="0" height="0.7" color="#ffffff" opacity="0.3"></a-cone>
-          
-          <!-- Spooky Glow -->
-          <a-light type="point" intensity="0.8" distance="2" position="0 0.5 0" color="#afffff"></a-light>
-        </a-entity>
+        <!-- The Ghost Model -->
+        <a-entity id="ghost-group" class="clickable">
+          <a-gltf-model 
+            id="ghost-mesh"
+            src="#ghostModel" 
+            position="0 -0.5 0" 
+            rotation="0 0 0" 
+            scale="0.5 0.5 0.5"
+            animation="property: position; to: 0 -0.4 0.1; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
+          ></a-gltf-model>
 
+          <!-- Ethereal Glow surrounding the ghost -->
+          <a-light type="point" intensity="1.5" distance="3" position="0 0 0.5" color="#00ffff">
+             <a-animation attribute="intensity" from="0.5" to="1.5" dur="1000" repeat="indefinite" direction="alternate"></a-animation>
+          </a-light>
+        </a-entity>
       </a-entity>
     </a-scene>
 
     <script>
       const sceneEl = document.querySelector('a-scene');
+      const startBtn = document.querySelector('#start-btn');
+      const overlay = document.querySelector('#overlay');
+      const uiOverlay = document.querySelector('#ui-overlay');
       const instruction = document.querySelector('.instruction');
-      const ghostGroup = document.querySelector('#ghost-group');
-      const ghostBody = document.querySelector('#ghost-body');
+      const ghostMesh = document.querySelector('#ghost-mesh');
       const sound = document.querySelector('#ghostSound');
 
-      // 1. Detection Logic
+      // Start AR Session on click
+      startBtn.addEventListener('click', () => {
+        overlay.style.display = 'none';
+        uiOverlay.style.display = 'block';
+        // Initialize MindAR and Camera
+        sceneEl.systems['mindar-image-system'].start(); 
+        // Pre-load/Unlock audio
+        sound.play().then(() => {
+          sound.pause();
+          sound.currentTime = 0;
+        });
+      });
+
       sceneEl.addEventListener("targetFound", event => {
-        instruction.innerText = "SIGHTING CONFIRMED!";
-        instruction.style.background = "rgba(0, 150, 0, 0.8)";
+        instruction.innerText = "SPIRIT DETECTED!";
         document.body.classList.add('scanning');
-        
-        // Play spooky sound
-        sound.play().catch(e => console.log("Sound waiting for user interaction"));
+        sound.play().catch(e => console.log("Audio play blocked"));
       });
 
       sceneEl.addEventListener("targetLost", event => {
-        instruction.innerText = "Scan your target to find the ghost...";
-        instruction.style.background = "rgba(0, 0, 0, 0.7)";
+        instruction.innerText = "Scanning for spirits...";
         document.body.classList.remove('scanning');
         sound.pause();
-        sound.currentTime = 0;
       });
 
-      // 2. Interaction Logic (Tapping the ghost)
-      ghostGroup.addEventListener('click', () => {
-        console.log("Ghost Tapped!");
+      // Tapping the ghost makes it "shiver" and turn angry
+      document.querySelector('#ghost-group').addEventListener('click', () => {
+        instruction.innerText = "YOU AGGRAVATED IT!";
         
-        // Change color to red and spin rapidly
-        ghostBody.setAttribute('color', '#ff4444');
-        ghostGroup.setAttribute('animation', 'property: rotation; to: 0 360 0; dur: 500; easing: easeInOutQuad');
-        
-        instruction.innerText = "IT SAW YOU!";
-        
-        // Reset after 1 second
+        // Visual reaction: spin and scale up
+        ghostMesh.setAttribute('animation__shake', 'property: rotation; to: 0 360 0; dur: 400; easing: easeInOutQuad');
+        ghostMesh.setAttribute('animation__scale', 'property: scale; to: 0.8 0.8 0.8; dur: 200; dir: alternate; loop: 2');
+
         setTimeout(() => {
-          ghostBody.setAttribute('color', '#ffffff');
-          ghostGroup.removeAttribute('animation');
-          instruction.innerText = "SIGHTING CONFIRMED!";
+          ghostMesh.removeAttribute('animation__shake');
+          ghostMesh.removeAttribute('animation__scale');
+          instruction.innerText = "SPIRIT DETECTED!";
         }, 1000);
-      });
-
-      // Fix for relative URL issues in some preview environments
-      window.addEventListener('load', () => {
-        const scene = document.querySelector('a-scene');
-        const currentSrc = scene.getAttribute('mindar-image');
-        // If the path needs to be absolute, we ensure it's handled properly by the browser's base URL logic
-        console.log("AR Scene Loaded with target config:", currentSrc);
       });
     </script>
   </body>
