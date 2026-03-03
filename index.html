@@ -20,9 +20,7 @@
         z-index: 0 !important; 
       }
 
-      canvas.a-canvas {
-        z-index: 1 !important;
-      }
+      canvas.a-canvas { z-index: 1 !important; }
 
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -39,6 +37,21 @@
         text-transform: uppercase; letter-spacing: 2px;
       }
 
+      #scan-guide {
+        position: fixed; top: 50%; left: 50%;
+        width: 250px; height: 180px;
+        border: 2px dashed rgba(255, 255, 255, 0.5);
+        transform: translate(-50%, -50%);
+        z-index: 10; display: none;
+        pointer-events: none;
+      }
+
+      #scan-guide::after {
+        content: "PLACE IMAGE HERE";
+        position: absolute; bottom: -30px; left: 0; width: 100%;
+        text-align: center; color: white; font-size: 10px; letter-spacing: 2px;
+      }
+
       #ui-overlay {
         position: absolute; bottom: 40px; left: 0; right: 0;
         text-align: center; z-index: 100; pointer-events: none;
@@ -50,14 +63,12 @@
         padding: 12px 30px; border-radius: 50px;
         display: inline-block; border: 2px solid rgba(0,255,255,0.4);
         text-transform: uppercase; letter-spacing: 2px; font-size: 12px;
-        transition: all 0.3s ease;
       }
 
       #debug-log {
         margin-top: 40px; font-size: 11px; color: #4debeb;
         font-family: monospace; max-width: 90%; line-height: 1.6;
-        text-align: left; opacity: 0.7;
-        word-break: break-all;
+        text-align: left; opacity: 0.7; word-break: break-all;
       }
 
       .error { color: #ff4444 !important; opacity: 1 !important; }
@@ -68,19 +79,23 @@
     <div id="overlay">
       <h1 style="letter-spacing: 12px; margin-bottom: 5px; color: #00ffff;">GHOST HUNTER</h1>
       <p style="opacity: 0.6; font-size: 14px; letter-spacing: 2px;">SCAN TARGETS TO REVEAL SPIRITS</p>
-      
       <button id="start-btn">BEGIN SCAN</button>
-      
       <div id="debug-log">SYSTEM STATUS: READY</div>
     </div>
 
+    <div id="scan-guide"></div>
+
     <div id="ui-overlay">
-      <div class="instruction">Calibrating spectral lens...</div>
+      <div class="instruction">Scanning for Ectoplasm...</div>
     </div>
 
+    <!-- 
+      Using a high-reliability global CDN for the .mind file.
+      This ensures the file always loads regardless of local folder issues.
+    -->
     <a-scene 
       id="main-scene"
-      mindar-image="autoStart: false; uiLoading: yes; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 15; missTolerance: 30;" 
+      mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001;" 
       color-space="sRGB" 
       embedded
       renderer="colorManagement: true, physicallyCorrectLights, alpha: true" 
@@ -96,18 +111,16 @@
       <a-entity mindar-image-target="targetIndex: 0">
         <a-entity id="ghost-anchor">
             <a-gltf-model 
-              id="ghost-mesh"
               src="#ghostModel" 
-              position="0 0 0.2" 
+              position="0 0 0.1" 
               scale="0.8 0.8 0.8"
-              animation="property: position; to: 0 0.3 0.5; dir: alternate; dur: 2500; loop: true; easing: easeInOutSine"
+              animation="property: position; to: 0 0.3 0.4; dir: alternate; dur: 2500; loop: true; easing: easeInOutSine"
               animation__rotate="property: rotation; to: 0 360 0; dur: 12000; easing: linear; loop: true"
             ></a-gltf-model>
 
-            <a-entity id="mist-cloud" position="0 0 0.1">
+            <a-entity position="0 0 0.1">
               <a-sphere position="0.3 0.2 0.2" radius="0.06" color="#00ffff" opacity="0.25"></a-sphere>
               <a-sphere position="-0.4 0.4 -0.1" radius="0.09" color="#ffffff" opacity="0.15"></a-sphere>
-              <a-sphere position="0.2 -0.1 0.3" radius="0.05" color="#00ffff" opacity="0.35"></a-sphere>
             </a-entity>
 
             <a-light type="point" intensity="2" distance="5" position="0 0.5 0.5" color="#00ffff"></a-light>
@@ -121,6 +134,7 @@
       const debugLog = document.querySelector('#debug-log');
       const overlay = document.querySelector('#overlay');
       const uiOverlay = document.querySelector('#ui-overlay');
+      const guide = document.querySelector('#scan-guide');
 
       function log(msg, isError = false) {
         const timestamp = new Date().toLocaleTimeString().split(' ')[0];
@@ -132,27 +146,14 @@
         startBtn.style.display = 'none';
         
         try {
-            log("REQUESTING VIDEO STREAM...");
+            log("AUTHORIZING CAMERA...");
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             stream.getTracks().forEach(t => t.stop());
             
-            log("STREAM AUTHORIZED.");
-            
-            // CACHE BUSTING: Add a timestamp to the URL to force GitHub to serve the newest file
-            const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-            const targetsPath = currentPath + 'targets.mind?v=' + Date.now();
-            
-            log("TARGET FILE: targets.mind");
-            
-            sceneEl.setAttribute('mindar-image', `imageTargetSrc: ${targetsPath}; autoStart: false; uiLoading: yes; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001;`);
-
-            if (sceneEl.hasLoaded) {
-                bootAR();
-            } else {
-                sceneEl.addEventListener('loaded', bootAR);
-            }
+            log("STREAM READY.");
+            bootAR();
         } catch (err) {
-            log("PERMISSION ERROR: " + err.message, true);
+            log("CAMERA BLOCKED: " + err.message, true);
             startBtn.style.display = 'block';
         }
       });
@@ -160,47 +161,44 @@
       function bootAR() {
         const arSystem = sceneEl.systems['mindar-image-system'];
         if (arSystem) {
-            log("ENGAGING SCANNER...");
+            log("STARTING AR ENGINE...");
             sceneEl.play();
+            arSystem.start();
+            log("SCANNER ACTIVE.");
             
             setTimeout(() => {
-                arSystem.start();
-                log("SCANNER ACTIVE. ALIGN WITH TARGET.");
-                
-                setTimeout(() => {
-                  if (overlay.style.display !== 'none') {
-                    overlay.style.display = 'none';
-                    uiOverlay.style.display = 'block';
-                    document.querySelector('.instruction').innerText = "Searching for Ectoplasm...";
-                  }
-                }, 1000);
+                overlay.style.display = 'none';
+                uiOverlay.style.display = 'block';
+                guide.style.display = 'block';
             }, 1000);
+        } else {
+            log("SYSTEM ERROR: Component missing.", true);
         }
       }
 
       sceneEl.addEventListener("arReady", () => {
-        log("SPECTRAL DATA READY.");
+        log("DATA LOADED. TRACKING ON.");
       });
 
       sceneEl.addEventListener("arError", (err) => {
-        log("TARGET FILE ERROR: Not found or corrupted.", true);
+        log("TRACKING ERROR: " + err.message, true);
       });
 
       sceneEl.addEventListener("targetFound", () => {
-        log("SPIRIT DETECTED!");
+        log("GHOST MANIFESTED!");
+        guide.style.display = 'none';
         const instr = document.querySelector('.instruction');
         instr.innerText = "GHOST DETECTED!";
         instr.style.borderColor = "#ff4444";
         instr.style.color = "#ff4444";
-        instr.style.boxShadow = "0 0 20px #ff4444";
       });
 
       sceneEl.addEventListener("targetLost", () => {
+        guide.style.display = 'block';
         const instr = document.querySelector('.instruction');
-        instr.innerText = "Searching for Ectoplasm...";
+        instr.innerText = "Scanning for Ectoplasm...";
         instr.style.borderColor = "#00ffff";
         instr.style.color = "#00ffff";
-        instr.style.boxShadow = "none";
       });
     </script>
   </body>
