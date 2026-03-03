@@ -3,65 +3,67 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ghost Hunter AR</title>
-    <!-- A-Frame and MindAR (Stable Versions) -->
+    <!-- Using CDN versions that are highly compatible with mobile -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
-    <!-- A-Frame Particle System -->
-    <script src="https://unpkg.com/aframe-particle-system-component@1.0.x/dist/aframe-particle-system-component.min.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; }
+      body { margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; }
       
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
         display: flex; flex-direction: column; justify-content: center; align-items: center;
-        z-index: 200; color: white; text-align: center;
+        z-index: 200; color: white; text-align: center; padding: 20px; box-sizing: border-box;
       }
 
       #start-btn {
-        padding: 15px 45px; font-size: 22px; cursor: pointer;
+        padding: 18px 50px; font-size: 20px; cursor: pointer;
         background: #00ffff; border: none; border-radius: 50px;
         color: black; font-weight: bold; margin-top: 25px;
-        box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+        text-transform: uppercase; letter-spacing: 1px;
       }
 
       #ui-overlay {
-        position: absolute; bottom: 30px; left: 0; right: 0;
+        position: absolute; bottom: 40px; left: 0; right: 0;
         text-align: center; z-index: 100; pointer-events: none;
         display: none;
       }
 
       .instruction {
-        background: rgba(0,0,0,0.85); color: #00ffff;
-        padding: 12px 30px; border-radius: 50px;
-        display: inline-block; border: 1px solid #00ffff;
-        text-transform: uppercase; letter-spacing: 2px;
+        background: rgba(0,0,0,0.8); color: #00ffff;
+        padding: 12px 25px; border-radius: 50px;
+        display: inline-block; border: 1px solid rgba(0,255,255,0.3);
+        text-transform: uppercase; letter-spacing: 2px; font-size: 12px;
       }
 
-      #status-msg {
-        color: #00ffff; margin-top: 20px; font-size: 14px; 
-        font-weight: 300; letter-spacing: 1px;
-        max-width: 80%;
+      #debug-log {
+        margin-top: 30px; font-size: 10px; color: #666;
+        font-family: monospace; max-width: 80%; line-height: 1.5;
       }
+
+      .error { color: #ff4444 !important; font-weight: bold; }
     </style>
   </head>
   <body>
 
     <div id="overlay">
-      <h1 style="letter-spacing: 8px; margin-bottom: 0;">GHOST HUNTER</h1>
-      <p style="opacity: 0.6; margin-top: 5px;">AUGMENTED REALITY SCANNER</p>
-      <button id="start-btn">INITIALIZE SCAN</button>
-      <div id="status-msg">READY TO BEGIN</div>
+      <h1 style="letter-spacing: 10px; margin-bottom: 5px;">GHOST HUNTER</h1>
+      <p style="opacity: 0.5; font-size: 14px;">POINT CAMERA AT MARKER TO REVEAL</p>
+      
+      <button id="start-btn">BEGIN SCAN</button>
+      
+      <div id="debug-log">SYSTEM STATUS: IDLE</div>
     </div>
 
     <div id="ui-overlay">
-      <div class="instruction">Scanning for spirits...</div>
+      <div class="instruction">Searching for Ectoplasm...</div>
     </div>
 
     <!-- 
-      MindAR Image Tracking
-      Using 'targets.mind' - ensure this file is in the same folder as index.html
+      Note: autoStart is false so we can trigger it with the button.
+      uiLoading and uiScanning are set to 'no' to prevent the built-in "dots" from appearing.
     -->
     <a-scene 
       mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
@@ -75,98 +77,85 @@
         <audio id="ghostSound" src="https://cdn.pixabay.com/audio/2022/10/30/audio_55a2998782.mp3" preload="auto"></audio>
       </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false">
-        <a-cursor fuse="false" raycaster="objects: .clickable"></a-cursor>
-      </a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-entity id="ghost-container" class="clickable">
-          <a-gltf-model 
-            id="ghost-mesh"
-            src="#ghostModel" 
-            position="0 -0.5 0" 
-            scale="0.6 0.6 0.6"
-            animation="property: position; to: 0 -0.3 0.1; dir: alternate; dur: 2500; loop: true; easing: easeInOutSine"
-          ></a-gltf-model>
+        <a-gltf-model 
+          id="ghost-mesh"
+          src="#ghostModel" 
+          position="0 -0.4 0" 
+          scale="0.6 0.6 0.6"
+          animation="property: position; to: 0 -0.2 0.1; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
+        ></a-gltf-model>
 
-          <a-entity position="0 0 0" 
-            particle-system="preset: dust; color: #ccffff; particleCount: 400; size: 0.4; velocityValue: 0 0.08 0; opacity: 0.2;">
-          </a-entity>
-
-          <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff">
-             <a-animation attribute="intensity" from="0.5" to="2.0" dur="1500" repeat="indefinite" direction="alternate"></a-animation>
-          </a-light>
-        </a-entity>
+        <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff"></a-light>
       </a-entity>
     </a-scene>
 
     <script>
       const sceneEl = document.querySelector('a-scene');
       const startBtn = document.querySelector('#start-btn');
-      const statusMsg = document.querySelector('#status-msg');
+      const debugLog = document.querySelector('#debug-log');
       const overlay = document.querySelector('#overlay');
       const uiOverlay = document.querySelector('#ui-overlay');
       const sound = document.querySelector('#ghostSound');
 
-      startBtn.addEventListener('click', async () => {
+      function log(msg, isError = false) {
+        console.log(msg);
+        debugLog.innerHTML += `<br><span class="${isError ? 'error' : ''}">${msg}</span>`;
+      }
+
+      startBtn.addEventListener('click', () => {
+        log("USER CLICKED START...");
         startBtn.style.display = 'none';
-        statusMsg.innerText = "WAKING SENSORS...";
         
-        try {
-          // STEP 1: Manually trigger camera access to clear any browser hang
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          // Stop it immediately, we just wanted to prove the user said 'Allow'
-          stream.getTracks().forEach(track => track.stop());
-          
-          statusMsg.innerText = "SENSORS ONLINE. LOADING DATA...";
-
-          // STEP 2: Ensure Scene has actually loaded components
-          if (sceneEl.hasLoaded) {
-            bootAR();
-          } else {
-            sceneEl.addEventListener('loaded', bootAR);
-          }
-        } catch (err) {
-          statusMsg.innerText = "ERROR: CAMERA PERMISSION BLOCKED. Please check your browser settings.";
-          console.error(err);
-        }
-
-        // Audio unlock
+        // 1. Try to unlock audio immediately
         sound.play().then(() => {
           sound.pause();
           sound.currentTime = 0;
-        }).catch(() => {});
-      });
+          log("AUDIO UNLOCKED");
+        }).catch(e => log("AUDIO BLOCKED", true));
 
-      function bootAR() {
+        // 2. Start the AR Engine
+        log("INITIALIZING AR ENGINE...");
         const arSystem = sceneEl.systems['mindar-image-system'];
+        
         if (arSystem) {
           arSystem.start();
+          log("AR START COMMAND SENT");
         } else {
-          statusMsg.innerText = "CRITICAL: AR ENGINE NOT FOUND.";
+          log("FATAL: AR SYSTEM NOT FOUND", true);
         }
-      }
+      });
 
-      // STEP 3: Listen for successful start
+      // AR Events
       sceneEl.addEventListener("arReady", () => {
+        log("SUCCESS: CAMERA STREAM ACTIVE");
         overlay.style.display = 'none';
         uiOverlay.style.display = 'block';
       });
 
       sceneEl.addEventListener("arError", (err) => {
-        statusMsg.innerText = "FILE ERROR: Verify targets.mind is in the same folder as index.html";
-        console.error(err);
+        log("AR ERROR: CHECK targets.mind FILE OR PERMISSIONS", true);
       });
 
       sceneEl.addEventListener("targetFound", () => {
-        document.querySelector('.instruction').innerText = "SIGHTING CONFIRMED!";
+        document.querySelector('.instruction').innerText = "GHOST DETECTED!";
         sound.play();
       });
 
       sceneEl.addEventListener("targetLost", () => {
-        document.querySelector('.instruction').innerText = "Scanning for spirits...";
+        document.querySelector('.instruction').innerText = "Searching for Ectoplasm...";
         sound.pause();
       });
+
+      // Fail-safe: if it's still stuck after 5 seconds, show an error
+      setTimeout(() => {
+        if (overlay.style.display !== 'none' && startBtn.style.display === 'none') {
+          log("TIMED OUT: IS YOUR BROWSER COMPATIBLE?", true);
+          log("TRY OPENING IN SYSTEM BROWSER (SAFARI/CHROME)");
+        }
+      }, 8000);
     </script>
   </body>
 </html>
