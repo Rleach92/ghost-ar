@@ -122,16 +122,17 @@
         
         try {
           // Explicitly wait for camera permission before starting AR
+          // This is necessary for mobile browsers to allow the stream
           await navigator.mediaDevices.getUserMedia({ video: true });
           
           statusMsg.innerText = "LOADING SPECTRAL DATA...";
           
-          // Start the MindAR System
-          const arSystem = sceneEl.systems['mindar-image-system'];
-          arSystem.start(); 
-          
-          // Audio unlock for mobile
-          sound.play().then(() => { sound.pause(); sound.currentTime = 0; });
+          // Wait for the scene to be loaded before accessing systems
+          if (sceneEl.hasLoaded) {
+            initAR();
+          } else {
+            sceneEl.addEventListener('loaded', initAR);
+          }
           
         } catch (err) {
           console.error("Camera Error:", err);
@@ -139,6 +140,23 @@
           statusMsg.classList.add('error-msg');
         }
       });
+
+      function initAR() {
+        // Fix: accessing systems safely. MindAR system might not be immediately ready.
+        const arSystem = sceneEl.systems['mindar-image-system'];
+        if (arSystem) {
+            arSystem.start(); 
+        } else {
+            // Fallback for some component race conditions
+            setTimeout(() => {
+                const retrySystem = sceneEl.systems['mindar-image-system'];
+                if (retrySystem) retrySystem.start();
+            }, 100);
+        }
+        
+        // Audio unlock for mobile
+        sound.play().then(() => { sound.pause(); sound.currentTime = 0; }).catch(() => {});
+      }
 
       // AR System ready event
       sceneEl.addEventListener("arReady", () => {
