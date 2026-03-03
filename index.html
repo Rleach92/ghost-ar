@@ -12,13 +12,18 @@
       
       /* ENSURE THE CAMERA VIDEO IS VISIBLE */
       video {
-        position: fixed;
-        top: 0;
-        left: 0;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
         width: 100vw !important;
         height: 100vh !important;
         object-fit: cover !important;
-        z-index: -1; 
+        z-index: 0 !important; 
+      }
+
+      /* The A-Frame Canvas must be transparent to see the video */
+      canvas.a-canvas {
+        z-index: 1 !important;
       }
 
       #overlay {
@@ -58,7 +63,6 @@
 
       .error { color: #ff4444 !important; opacity: 1 !important; }
 
-      /* Visual cue for initialization */
       .flash {
         position: fixed; top:0; left:0; width:100%; height:100%;
         background: white; z-index: 300; pointer-events: none;
@@ -87,7 +91,8 @@
       id="main-scene"
       mindar-image="autoStart: false; uiLoading: yes; uiScanning: no;" 
       color-space="sRGB" 
-      renderer="colorManagement: true, physicallyCorrectLights" 
+      embedded
+      renderer="colorManagement: true, physicallyCorrectLights, alpha: true" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
       
@@ -107,14 +112,13 @@
               animation="property: position; to: 0 -0.2 0.1; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
             ></a-gltf-model>
 
-            <!-- Mist Effect -->
             <a-entity id="mist-cloud" position="0 0 0" animation="property: rotation; to: 0 360 0; dur: 10000; easing: linear; loop: true">
               <a-sphere position="0.4 0.1 0.2" radius="0.05" color="#00ffff" opacity="0.3"
                 animation="property: position; to: 0.4 0.3 0.2; dir: alternate; dur: 2500; loop: true"></a-sphere>
               <a-sphere position="-0.3 0.5 -0.1" radius="0.08" color="#ffffff" opacity="0.2"
                 animation="property: position; to: -0.3 0.2 -0.1; dir: alternate; dur: 3000; loop: true"></a-sphere>
               <a-sphere position="0.1 -0.2 0.4" radius="0.04" color="#00ffff" opacity="0.4"
-                animation="property: position; to: 0.1 0.1 0.4; dur: 1800; loop: true"></a-sphere>
+                animation="property: position; to: 0.1 0.1 0.4; dir: alternate; dur: 1800; loop: true"></a-sphere>
             </a-entity>
 
             <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff">
@@ -141,20 +145,17 @@
         log("INITIATING SENSORS...");
         startBtn.style.display = 'none';
         
-        // 1. Force visual flash
         flash.style.opacity = "0.5";
         setTimeout(() => { flash.style.opacity = "0"; }, 150);
 
         try {
-            // 2. Explicitly request camera to bypass browser hang
             log("REQUESTING VIDEO STREAM...");
+            // We request the stream once to satisfy permissions, then release it for MindAR
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            // Release the manual stream so MindAR can take it
             stream.getTracks().forEach(t => t.stop());
             
             log("STREAM AUTHORIZED.");
             
-            // Resolve path
             const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
             const targetsPath = currentPath + 'targets.mind';
             sceneEl.setAttribute('mindar-image', `imageTargetSrc: ${targetsPath}; autoStart: false; uiLoading: yes; uiScanning: no;`);
@@ -174,7 +175,19 @@
         const arSystem = sceneEl.systems['mindar-image-system'];
         if (arSystem) {
             log("ENGAGING AR ENGINE...");
+            // Force the scene to play in case it's paused
+            sceneEl.play();
+            // Start the AR tracking
             arSystem.start();
+            
+            // Fail-safe: if after 3s it's still stuck, try to force-hide the overlay
+            setTimeout(() => {
+              if (overlay.style.display !== 'none') {
+                 log("FORCING CAMERA DISPLAY...");
+                 overlay.style.display = 'none';
+                 uiOverlay.style.display = 'block';
+              }
+            }, 3000);
         } else {
             log("ERROR: AR SYSTEM COMPONENT NOT READY", true);
         }
