@@ -3,26 +3,26 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ghost Hunter AR</title>
-    <!-- Using CDN versions that are highly compatible with mobile -->
+    <!-- A-Frame and MindAR -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; }
+      body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
       
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
+        background: radial-gradient(circle, #0a1a1a 0%, #000 100%);
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         z-index: 200; color: white; text-align: center; padding: 20px; box-sizing: border-box;
       }
 
       #start-btn {
-        padding: 18px 50px; font-size: 20px; cursor: pointer;
+        padding: 20px 60px; font-size: 22px; cursor: pointer;
         background: #00ffff; border: none; border-radius: 50px;
         color: black; font-weight: bold; margin-top: 25px;
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
-        text-transform: uppercase; letter-spacing: 1px;
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+        text-transform: uppercase; letter-spacing: 2px;
       }
 
       #ui-overlay {
@@ -32,41 +32,39 @@
       }
 
       .instruction {
-        background: rgba(0,0,0,0.8); color: #00ffff;
-        padding: 12px 25px; border-radius: 50px;
-        display: inline-block; border: 1px solid rgba(0,255,255,0.3);
+        background: rgba(0,0,0,0.85); color: #00ffff;
+        padding: 12px 30px; border-radius: 50px;
+        display: inline-block; border: 1px solid rgba(0,255,255,0.4);
         text-transform: uppercase; letter-spacing: 2px; font-size: 12px;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
       }
 
       #debug-log {
-        margin-top: 30px; font-size: 10px; color: #666;
-        font-family: monospace; max-width: 80%; line-height: 1.5;
+        margin-top: 40px; font-size: 11px; color: #4debeb;
+        font-family: monospace; max-width: 90%; line-height: 1.6;
+        text-align: left; opacity: 0.7;
       }
 
-      .error { color: #ff4444 !important; font-weight: bold; }
+      .error { color: #ff4444 !important; opacity: 1 !important; }
     </style>
   </head>
   <body>
 
     <div id="overlay">
-      <h1 style="letter-spacing: 10px; margin-bottom: 5px;">GHOST HUNTER</h1>
-      <p style="opacity: 0.5; font-size: 14px;">POINT CAMERA AT MARKER TO REVEAL</p>
+      <h1 style="letter-spacing: 12px; margin-bottom: 5px; color: #00ffff;">GHOST HUNTER</h1>
+      <p style="opacity: 0.6; font-size: 14px; letter-spacing: 2px;">SCAN TARGETS TO REVEAL SPIRITS</p>
       
       <button id="start-btn">BEGIN SCAN</button>
       
-      <div id="debug-log">SYSTEM STATUS: IDLE</div>
+      <div id="debug-log">SYSTEM STATUS: READY</div>
     </div>
 
     <div id="ui-overlay">
-      <div class="instruction">Searching for Ectoplasm...</div>
+      <div class="instruction">Scanning for Ectoplasm...</div>
     </div>
 
-    <!-- 
-      Note: autoStart is false so we can trigger it with the button.
-      uiLoading and uiScanning are set to 'no' to prevent the built-in "dots" from appearing.
-    -->
     <a-scene 
-      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
+      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: yes; uiScanning: no;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -74,21 +72,51 @@
       
       <a-assets>
         <a-asset-item id="ghostModel" src="https://vazxmixjsiawhamofvyt.supabase.co/storage/v1/object/public/models/ghost/model.gltf"></a-asset-item>
-        <audio id="ghostSound" src="https://cdn.pixabay.com/audio/2022/10/30/audio_55a2998782.mp3" preload="auto"></audio>
+        <audio id="ghostSound" src="https://cdn.pixabay.com/audio/2022/10/30/audio_55a2998782.mp3" preload="auto" loop="true"></audio>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-gltf-model 
-          id="ghost-mesh"
-          src="#ghostModel" 
-          position="0 -0.4 0" 
-          scale="0.6 0.6 0.6"
-          animation="property: position; to: 0 -0.2 0.1; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
-        ></a-gltf-model>
+        <!-- The Ghost Group -->
+        <a-entity id="ghost-anchor">
+            <!-- Ghost Model -->
+            <a-gltf-model 
+              id="ghost-mesh"
+              src="#ghostModel" 
+              position="0 -0.4 0" 
+              scale="0.6 0.6 0.6"
+              animation="property: position; to: 0 -0.2 0.1; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
+            ></a-gltf-model>
 
-        <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff"></a-light>
+            <!-- 
+              REPLACEMENT FOR FAILING PARTICLE SYSTEM:
+              We use a rotating cloud of small, translucent spheres to create the "Mist" effect.
+              This is more stable and won't throw UUID errors.
+            -->
+            <a-entity id="mist-cloud" position="0 0 0" animation="property: rotation; to: 0 360 0; dur: 10000; easing: linear; loop: true">
+              <!-- Particle 1 -->
+              <a-sphere position="0.4 0.1 0.2" radius="0.05" color="#00ffff" opacity="0.3"
+                animation="property: position; to: 0.4 0.3 0.2; dir: alternate; dur: 2500; loop: true"></a-sphere>
+              <!-- Particle 2 -->
+              <a-sphere position="-0.3 0.5 -0.1" radius="0.08" color="#ffffff" opacity="0.2"
+                animation="property: position; to: -0.3 0.2 -0.1; dir: alternate; dur: 3000; loop: true"></a-sphere>
+              <!-- Particle 3 -->
+              <a-sphere position="0.1 -0.2 0.4" radius="0.04" color="#00ffff" opacity="0.4"
+                animation="property: position; to: 0.1 0.1 0.4; dir: alternate; dur: 1800; loop: true"></a-sphere>
+              <!-- Particle 4 -->
+              <a-sphere position="-0.2 -0.3 -0.3" radius="0.06" color="#ffffff" opacity="0.1"
+                animation="property: position; to: -0.2 0.0 -0.3; dir: alternate; dur: 3500; loop: true"></a-sphere>
+              <!-- Particle 5 -->
+              <a-sphere position="0.5 0.4 -0.2" radius="0.05" color="#00ffff" opacity="0.2"
+                animation="property: position; to: 0.5 0.1 -0.2; dir: alternate; dur: 2200; loop: true"></a-sphere>
+            </a-entity>
+
+            <!-- Pulsing Spectral Light -->
+            <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff">
+                 <a-animation attribute="intensity" from="0.5" to="2.0" dur="1500" repeat="indefinite" direction="alternate"></a-animation>
+            </a-light>
+        </a-entity>
       </a-entity>
     </a-scene>
 
@@ -101,61 +129,73 @@
       const sound = document.querySelector('#ghostSound');
 
       function log(msg, isError = false) {
-        console.log(msg);
-        debugLog.innerHTML += `<br><span class="${isError ? 'error' : ''}">${msg}</span>`;
+        const timestamp = new Date().toLocaleTimeString().split(' ')[0];
+        debugLog.innerHTML += `<br><span class="${isError ? 'error' : ''}">[${timestamp}] ${msg}</span>`;
       }
 
       startBtn.addEventListener('click', () => {
-        log("USER CLICKED START...");
+        log("INITIALIZING...");
         startBtn.style.display = 'none';
         
-        // 1. Try to unlock audio immediately
+        // 1. PRIME AUDIO
         sound.play().then(() => {
           sound.pause();
           sound.currentTime = 0;
-          log("AUDIO UNLOCKED");
-        }).catch(e => log("AUDIO BLOCKED", true));
-
-        // 2. Start the AR Engine
-        log("INITIALIZING AR ENGINE...");
-        const arSystem = sceneEl.systems['mindar-image-system'];
-        
-        if (arSystem) {
-          arSystem.start();
-          log("AR START COMMAND SENT");
-        } else {
-          log("FATAL: AR SYSTEM NOT FOUND", true);
-        }
+          log("AUDIO ENGINE UNLOCKED");
+          bootAR();
+        }).catch(e => {
+          log("AUDIO ERROR: Tap screen again if sound fails", true);
+          bootAR(); 
+        });
       });
 
-      // AR Events
+      function bootAR() {
+        log("WAKING CAMERA...");
+        const arSystem = sceneEl.systems['mindar-image-system'];
+        
+        const trigger = () => {
+            try {
+                arSystem.start();
+                log("SCANNER ACTIVE");
+            } catch (err) {
+                log("SCANNER ERROR: " + err.message, true);
+            }
+        };
+
+        if (sceneEl.hasLoaded) {
+          trigger();
+        } else {
+          sceneEl.addEventListener('loaded', trigger);
+        }
+      }
+
       sceneEl.addEventListener("arReady", () => {
-        log("SUCCESS: CAMERA STREAM ACTIVE");
+        log("SYSTEMS ONLINE");
         overlay.style.display = 'none';
         uiOverlay.style.display = 'block';
       });
 
       sceneEl.addEventListener("arError", (err) => {
-        log("AR ERROR: CHECK targets.mind FILE OR PERMISSIONS", true);
+        log("HARDWARE ERROR: Check Camera Permissions", true);
       });
 
       sceneEl.addEventListener("targetFound", () => {
         document.querySelector('.instruction').innerText = "GHOST DETECTED!";
-        sound.play();
+        document.querySelector('.instruction').style.background = "rgba(0, 50, 50, 0.9)";
+        sound.play().catch(e => console.log("Playback failed", e));
       });
 
       sceneEl.addEventListener("targetLost", () => {
         document.querySelector('.instruction').innerText = "Searching for Ectoplasm...";
+        document.querySelector('.instruction').style.background = "rgba(0,0,0,0.85)";
         sound.pause();
       });
 
-      // Fail-safe: if it's still stuck after 5 seconds, show an error
-      setTimeout(() => {
-        if (overlay.style.display !== 'none' && startBtn.style.display === 'none') {
-          log("TIMED OUT: IS YOUR BROWSER COMPATIBLE?", true);
-          log("TRY OPENING IN SYSTEM BROWSER (SAFARI/CHROME)");
-        }
-      }, 8000);
+      document.body.addEventListener('touchstart', () => {
+         if (sound.paused && uiOverlay.style.display === 'block') {
+             console.log("Secondary audio unlock triggered");
+         }
+      }, {once: true});
     </script>
   </body>
 </html>
