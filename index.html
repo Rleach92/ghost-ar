@@ -3,16 +3,16 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ghost Hunter AR</title>
-    <!-- A-Frame and MindAR -->
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <!-- A-Frame Particle System for the mist -->
+    <!-- A-Frame and MindAR (Stable Versions) -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <!-- A-Frame Particle System -->
     <script src="https://unpkg.com/aframe-particle-system-component@1.0.x/dist/aframe-particle-system-component.min.js"></script>
     
     <style>
       body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; }
       
-      /* Start Overlay to unlock audio/camera */
+      /* Start Overlay */
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.95);
@@ -24,9 +24,7 @@
         background: #00ffff; border: none; border-radius: 30px;
         color: black; font-weight: bold; margin-top: 20px;
         box-shadow: 0 0 20px #00ffff;
-        transition: transform 0.2s;
       }
-      #start-btn:active { transform: scale(0.95); }
 
       #ui-overlay {
         position: absolute; bottom: 30px; left: 0; right: 0;
@@ -39,11 +37,15 @@
         display: inline-block; transition: all 0.3s ease;
         border: 1px solid #444;
         text-transform: uppercase;
-        letter-spacing: 1px;
       }
       .scanning .instruction {
         border-color: #00ffff; box-shadow: 0 0 15px #00ffff;
         color: #00ffff;
+      }
+
+      /* Simple loading spinner/text */
+      #loading-text {
+        color: #00ffff; margin-top: 10px; font-size: 14px; display: none;
       }
     </style>
   </head>
@@ -53,23 +55,26 @@
       <h1 style="letter-spacing: 5px;">GHOST HUNTER AR</h1>
       <p style="opacity: 0.7;">Prepare your device. Find the hidden markers.</p>
       <button id="start-btn">BEGIN SEARCH</button>
+      <div id="loading-text">INITIALIZING SENSORS...</div>
     </div>
 
     <div id="ui-overlay">
       <div class="instruction">Scanning for spectral activity...</div>
     </div>
 
+    <!-- 
+      MindAR Image Tracking
+      We use './targets.mind' to ensure it looks in the same folder as the HTML file.
+    -->
     <a-scene 
-      mindar-image="imageTargetSrc: targets.mind; autoStart: false;" 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: yes;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
       
       <a-assets>
-        <!-- Realistic 3D Ghost Model -->
         <a-asset-item id="ghostModel" src="https://vazxmixjsiawhamofvyt.supabase.co/storage/v1/object/public/models/ghost/model.gltf"></a-asset-item>
-        <!-- Spooky Ambient Sound -->
         <audio id="ghostSound" src="https://cdn.pixabay.com/audio/2022/10/30/audio_55a2998782.mp3" preload="auto"></audio>
       </a-assets>
 
@@ -78,10 +83,8 @@
       </a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <!-- Ghost and Effects Container -->
         <a-entity id="ghost-container" class="clickable">
           
-          <!-- The Ghost Model -->
           <a-gltf-model 
             id="ghost-mesh"
             src="#ghostModel" 
@@ -90,13 +93,12 @@
             animation="property: position; to: 0 -0.3 0.1; dir: alternate; dur: 2500; loop: true; easing: easeInOutSine"
           ></a-gltf-model>
 
-          <!-- GHOSTLY MIST SYSTEM -->
-          <!-- We use a particle system to create a swirling fog effect -->
+          <!-- Ghostly Mist -->
           <a-entity position="0 0 0" 
-            particle-system="preset: dust; color: #ccffff; particleCount: 500; size: 0.5; velocityValue: 0 0.1 0; velocitySpread: 0.5 0 0.5; accelerationValue: 0 0.05 0; opacity: 0.3; rotationAngle: 3.14">
+            particle-system="preset: dust; color: #ccffff; particleCount: 500; size: 0.5; velocityValue: 0 0.1 0; velocitySpread: 0.5 0 0.5; opacity: 0.3;">
           </a-entity>
 
-          <!-- Ethereal Pulsing Glow -->
+          <!-- Spectral Light -->
           <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff">
              <a-animation attribute="intensity" from="0.5" to="2.0" dur="1500" repeat="indefinite" direction="alternate"></a-animation>
           </a-light>
@@ -108,29 +110,40 @@
     <script>
       const sceneEl = document.querySelector('a-scene');
       const startBtn = document.querySelector('#start-btn');
+      const loadingText = document.querySelector('#loading-text');
       const overlay = document.querySelector('#overlay');
       const uiOverlay = document.querySelector('#ui-overlay');
       const instruction = document.querySelector('.instruction');
       const ghostMesh = document.querySelector('#ghost-mesh');
       const sound = document.querySelector('#ghostSound');
 
-      // Start AR Session
       startBtn.addEventListener('click', () => {
-        overlay.style.display = 'none';
-        uiOverlay.style.display = 'block';
+        startBtn.style.display = 'none';
+        loadingText.style.display = 'block';
+        
+        // Start MindAR
         sceneEl.systems['mindar-image-system'].start(); 
         
-        // Browser Audio Unlock
-        sound.play().then(() => {
-          sound.pause();
-          sound.currentTime = 0;
-        });
+        // Unlock audio
+        sound.play().then(() => { sound.pause(); sound.currentTime = 0; });
+      });
+
+      // Once the AR system is actually ready and the camera is on
+      sceneEl.addEventListener("arReady", (event) => {
+        overlay.style.display = 'none';
+        uiOverlay.style.display = 'block';
+      });
+
+      // Error handling for targets file
+      sceneEl.addEventListener("arError", (event) => {
+        loadingText.innerText = "ERROR: Could not load targets.mind. Check file path!";
+        loadingText.style.color = "red";
       });
 
       sceneEl.addEventListener("targetFound", event => {
         instruction.innerText = "SIGHTING CONFIRMED!";
         document.body.classList.add('scanning');
-        sound.play().catch(e => console.log("Audio play blocked"));
+        sound.play();
       });
 
       sceneEl.addEventListener("targetLost", event => {
@@ -139,17 +152,11 @@
         sound.pause();
       });
 
-      // Tapping Interaction
       document.querySelector('#ghost-container').addEventListener('click', () => {
         instruction.innerText = "THE SPIRIT IS AGITATED!";
-        
-        // Spin and scale up effect
         ghostMesh.setAttribute('animation__shake', 'property: rotation; to: 0 360 0; dur: 400; easing: easeInOutQuad');
-        ghostMesh.setAttribute('animation__scale', 'property: scale; to: 0.9 0.9 0.9; dur: 200; dir: alternate; loop: 2');
-
         setTimeout(() => {
           ghostMesh.removeAttribute('animation__shake');
-          ghostMesh.removeAttribute('animation__scale');
           instruction.innerText = "SIGHTING CONFIRMED!";
         }, 1000);
       });
