@@ -10,64 +10,66 @@
     <script src="https://unpkg.com/aframe-particle-system-component@1.0.x/dist/aframe-particle-system-component.min.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; }
+      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; }
       
-      /* Start Overlay */
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.95);
+        background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         z-index: 200; color: white; text-align: center;
       }
+
       #start-btn {
-        padding: 15px 40px; font-size: 20px; cursor: pointer;
-        background: #00ffff; border: none; border-radius: 30px;
-        color: black; font-weight: bold; margin-top: 20px;
-        box-shadow: 0 0 20px #00ffff;
+        padding: 15px 45px; font-size: 22px; cursor: pointer;
+        background: #00ffff; border: none; border-radius: 50px;
+        color: black; font-weight: bold; margin-top: 25px;
+        box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+        transition: all 0.2s;
       }
+
+      #start-btn:active { transform: scale(0.95); }
 
       #ui-overlay {
         position: absolute; bottom: 30px; left: 0; right: 0;
         text-align: center; z-index: 100; pointer-events: none;
         display: none;
       }
+
       .instruction {
-        background: rgba(0,0,0,0.8); color: white;
-        padding: 12px 25px; border-radius: 50px;
-        display: inline-block; transition: all 0.3s ease;
-        border: 1px solid #444;
-        text-transform: uppercase;
-      }
-      .scanning .instruction {
-        border-color: #00ffff; box-shadow: 0 0 15px #00ffff;
-        color: #00ffff;
+        background: rgba(0,0,0,0.85); color: #00ffff;
+        padding: 12px 30px; border-radius: 50px;
+        display: inline-block; border: 1px solid #00ffff;
+        text-transform: uppercase; letter-spacing: 2px;
+        font-size: 14px;
       }
 
-      /* Simple loading spinner/text */
-      #loading-text {
-        color: #00ffff; margin-top: 10px; font-size: 14px; display: none;
+      #status-msg {
+        color: #00ffff; margin-top: 20px; font-size: 14px; 
+        font-weight: 300; letter-spacing: 1px;
       }
+
+      .error-msg { color: #ff4444 !important; font-weight: bold !important; }
     </style>
   </head>
   <body>
 
     <div id="overlay">
-      <h1 style="letter-spacing: 5px;">GHOST HUNTER AR</h1>
-      <p style="opacity: 0.7;">Prepare your device. Find the hidden markers.</p>
-      <button id="start-btn">BEGIN SEARCH</button>
-      <div id="loading-text">INITIALIZING SENSORS...</div>
+      <h1 style="letter-spacing: 8px; margin-bottom: 0;">GHOST HUNTER</h1>
+      <p style="opacity: 0.6; margin-top: 5px;">AUGMENTED REALITY SCANNER</p>
+      <button id="start-btn">INITIALIZE SCAN</button>
+      <div id="status-msg">READY TO BEGIN</div>
     </div>
 
     <div id="ui-overlay">
-      <div class="instruction">Scanning for spectral activity...</div>
+      <div class="instruction">Scanning for spirits...</div>
     </div>
 
     <!-- 
       MindAR Image Tracking
-      We use './targets.mind' to ensure it looks in the same folder as the HTML file.
+      Using 'targets.mind' - ensure this file is in the same folder as index.html
     -->
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: yes;" 
+      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -93,16 +95,13 @@
             animation="property: position; to: 0 -0.3 0.1; dir: alternate; dur: 2500; loop: true; easing: easeInOutSine"
           ></a-gltf-model>
 
-          <!-- Ghostly Mist -->
           <a-entity position="0 0 0" 
-            particle-system="preset: dust; color: #ccffff; particleCount: 500; size: 0.5; velocityValue: 0 0.1 0; velocitySpread: 0.5 0 0.5; opacity: 0.3;">
+            particle-system="preset: dust; color: #ccffff; particleCount: 400; size: 0.4; velocityValue: 0 0.08 0; opacity: 0.2;">
           </a-entity>
 
-          <!-- Spectral Light -->
           <a-light type="point" intensity="1.5" distance="4" position="0 0.5 0.5" color="#00ffff">
              <a-animation attribute="intensity" from="0.5" to="2.0" dur="1500" repeat="indefinite" direction="alternate"></a-animation>
           </a-light>
-
         </a-entity>
       </a-entity>
     </a-scene>
@@ -110,45 +109,59 @@
     <script>
       const sceneEl = document.querySelector('a-scene');
       const startBtn = document.querySelector('#start-btn');
-      const loadingText = document.querySelector('#loading-text');
+      const statusMsg = document.querySelector('#status-msg');
       const overlay = document.querySelector('#overlay');
       const uiOverlay = document.querySelector('#ui-overlay');
       const instruction = document.querySelector('.instruction');
       const ghostMesh = document.querySelector('#ghost-mesh');
       const sound = document.querySelector('#ghostSound');
 
-      startBtn.addEventListener('click', () => {
+      startBtn.addEventListener('click', async () => {
+        statusMsg.innerText = "REQUESTING CAMERA ACCESS...";
         startBtn.style.display = 'none';
-        loadingText.style.display = 'block';
         
-        // Start MindAR
-        sceneEl.systems['mindar-image-system'].start(); 
-        
-        // Unlock audio
-        sound.play().then(() => { sound.pause(); sound.currentTime = 0; });
+        try {
+          // Explicitly wait for camera permission before starting AR
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          
+          statusMsg.innerText = "LOADING SPECTRAL DATA...";
+          
+          // Start the MindAR System
+          const arSystem = sceneEl.systems['mindar-image-system'];
+          arSystem.start(); 
+          
+          // Audio unlock for mobile
+          sound.play().then(() => { sound.pause(); sound.currentTime = 0; });
+          
+        } catch (err) {
+          console.error("Camera Error:", err);
+          statusMsg.innerText = "ERROR: CAMERA PERMISSION DENIED";
+          statusMsg.classList.add('error-msg');
+        }
       });
 
-      // Once the AR system is actually ready and the camera is on
-      sceneEl.addEventListener("arReady", (event) => {
+      // AR System ready event
+      sceneEl.addEventListener("arReady", () => {
         overlay.style.display = 'none';
         uiOverlay.style.display = 'block';
       });
 
-      // Error handling for targets file
+      // AR System error event
       sceneEl.addEventListener("arError", (event) => {
-        loadingText.innerText = "ERROR: Could not load targets.mind. Check file path!";
-        loadingText.style.color = "red";
+        statusMsg.innerText = "FILE ERROR: COULD NOT LOAD TARGETS.MIND";
+        statusMsg.classList.add('error-msg');
+        console.error("AR Error:", event);
       });
 
       sceneEl.addEventListener("targetFound", event => {
         instruction.innerText = "SIGHTING CONFIRMED!";
-        document.body.classList.add('scanning');
+        instruction.style.color = "#ff4444";
         sound.play();
       });
 
       sceneEl.addEventListener("targetLost", event => {
         instruction.innerText = "Scanning for spirits...";
-        document.body.classList.remove('scanning');
+        instruction.style.color = "#00ffff";
         sound.pause();
       });
 
