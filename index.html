@@ -42,6 +42,7 @@
       #status-msg {
         color: #00ffff; margin-top: 20px; font-size: 14px; 
         font-weight: 300; letter-spacing: 1px;
+        max-width: 80%;
       }
     </style>
   </head>
@@ -58,8 +59,12 @@
       <div class="instruction">Scanning for spirits...</div>
     </div>
 
+    <!-- 
+      MindAR Image Tracking
+      Using 'targets.mind' - ensure this file is in the same folder as index.html
+    -->
     <a-scene 
-      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: yes; uiScanning: no;" 
+      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -103,39 +108,54 @@
       const uiOverlay = document.querySelector('#ui-overlay');
       const sound = document.querySelector('#ghostSound');
 
-      startBtn.addEventListener('click', () => {
-        statusMsg.innerText = "STARTING SENSORS...";
+      startBtn.addEventListener('click', async () => {
         startBtn.style.display = 'none';
+        statusMsg.innerText = "WAKING SENSORS...";
         
-        // Let MindAR handle the camera request itself
-        const startAR = () => {
-          const arSystem = sceneEl.systems['mindar-image-system'];
-          if (arSystem) {
-            arSystem.start();
-          }
-        };
+        try {
+          // STEP 1: Manually trigger camera access to clear any browser hang
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          // Stop it immediately, we just wanted to prove the user said 'Allow'
+          stream.getTracks().forEach(track => track.stop());
+          
+          statusMsg.innerText = "SENSORS ONLINE. LOADING DATA...";
 
-        if (sceneEl.hasLoaded) {
-          startAR();
-        } else {
-          sceneEl.addEventListener('loaded', startAR);
+          // STEP 2: Ensure Scene has actually loaded components
+          if (sceneEl.hasLoaded) {
+            bootAR();
+          } else {
+            sceneEl.addEventListener('loaded', bootAR);
+          }
+        } catch (err) {
+          statusMsg.innerText = "ERROR: CAMERA PERMISSION BLOCKED. Please check your browser settings.";
+          console.error(err);
         }
 
-        // Handle Audio Unlock
+        // Audio unlock
         sound.play().then(() => {
           sound.pause();
           sound.currentTime = 0;
         }).catch(() => {});
       });
 
+      function bootAR() {
+        const arSystem = sceneEl.systems['mindar-image-system'];
+        if (arSystem) {
+          arSystem.start();
+        } else {
+          statusMsg.innerText = "CRITICAL: AR ENGINE NOT FOUND.";
+        }
+      }
+
+      // STEP 3: Listen for successful start
       sceneEl.addEventListener("arReady", () => {
         overlay.style.display = 'none';
         uiOverlay.style.display = 'block';
       });
 
       sceneEl.addEventListener("arError", (err) => {
-        statusMsg.innerText = "ERROR: CAMERA OR FILE ISSUE";
-        console.error("AR Error", err);
+        statusMsg.innerText = "FILE ERROR: Verify targets.mind is in the same folder as index.html";
+        console.error(err);
       });
 
       sceneEl.addEventListener("targetFound", () => {
