@@ -3,6 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ghost Hunter AR</title>
+    <!-- Stable A-Frame & MindAR -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     
@@ -30,15 +31,6 @@
         text-transform: uppercase; letter-spacing: 2px;
       }
 
-      #scan-guide {
-        position: fixed; top: 50%; left: 50%;
-        width: 280px; height: 190px;
-        border: 2px dashed #00ffff;
-        transform: translate(-50%, -50%);
-        z-index: 10; display: none; pointer-events: none;
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
-      }
-
       #ui-overlay {
         position: absolute; bottom: 40px; left: 0; right: 0;
         text-align: center; z-index: 100; pointer-events: none;
@@ -49,14 +41,23 @@
         background: rgba(0,0,0,0.85); color: #00ffff;
         padding: 12px 30px; border-radius: 50px;
         display: inline-block; border: 2px solid rgba(0,255,255,0.4);
-        text-transform: uppercase; letter-spacing: 2px; font-size: 12px;
-        transition: all 0.3s ease;
+        text-transform: uppercase; letter-spacing: 2px; font-size: 14px;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
       }
 
       #debug-log {
         margin-top: 40px; font-size: 10px; color: #4debeb;
-        opacity: 0.5; font-family: monospace; text-align: left;
-        max-width: 80%;
+        opacity: 0.6; font-family: monospace; text-align: left;
+        max-width: 85%; line-height: 1.4;
+      }
+      
+      /* Target Reticle */
+      #reticle {
+        position: fixed; top: 50%; left: 50%;
+        width: 260px; height: 180px;
+        border: 2px dashed #00ffff;
+        transform: translate(-50%, -50%);
+        z-index: 10; display: none; pointer-events: none;
       }
     </style>
   </head>
@@ -64,24 +65,23 @@
 
     <div id="overlay">
       <h1 style="letter-spacing: 12px; color: #00ffff;">GHOST HUNTER</h1>
-      <p style="opacity: 0.6; letter-spacing: 2px;">CALIBRATING SPECTRAL LENS</p>
-      <button id="start-btn">BEGIN SCAN</button>
-      <div id="debug-log">SYSTEM STATUS: READY</div>
+      <p style="opacity: 0.6; letter-spacing: 2px;">CALIBRATING SPECTRAL SENSORS</p>
+      <button id="start-btn">ENGAGE SCANNER</button>
+      <div id="debug-log">SYSTEM STATUS: INITIALIZED</div>
     </div>
 
-    <div id="scan-guide"></div>
+    <div id="reticle"></div>
 
     <div id="ui-overlay">
-      <div class="instruction" id="status-text">Searching for Ectoplasm...</div>
+      <div class="instruction" id="status-text">Scanning for Ectoplasm...</div>
     </div>
 
     <!-- 
-      MindAR Optimization:
-      Lowering filterMinCF to 0.0001 makes the "handshake" between the camera and the image much faster.
-      Increasing missTolerance ensures the ghost doesn't vanish instantly if the camera shakes.
+        MANDATORY: We are using a highly stable CDN link to the 'card' tracking data.
+        This data matches the Calibration Target exactly.
     -->
     <a-scene 
-      mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 15; missTolerance: 30;" 
+      mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.2/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001;" 
       embedded color-space="sRGB" renderer="colorManagement: true, alpha: true" 
       vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       
@@ -92,14 +92,16 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-gltf-model 
-          src="#ghostModel" 
-          position="0 0 0.3" 
-          scale="1.5 1.5 1.5"
-          animation="property: position; to: 0 0.4 0.6; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
-          animation__rotate="property: rotation; to: 0 360 0; dur: 12000; easing: linear; loop: true"
-        ></a-gltf-model>
-        <a-light type="point" intensity="2" position="0 0.5 0.5" color="#00ffff"></a-light>
+        <!-- Enlarged and centered Ghost -->
+        <a-entity id="ghost-wrapper" position="0 0 0.1">
+            <a-gltf-model 
+              src="#ghostModel" 
+              scale="1.8 1.8 1.8"
+              animation="property: position; to: 0 0.2 0.3; dir: alternate; dur: 2000; loop: true; easing: easeInOutSine"
+              animation__rotate="property: rotation; to: 0 360 0; dur: 12000; easing: linear; loop: true"
+            ></a-gltf-model>
+            <a-light type="point" intensity="3" position="0 0.5 0.5" color="#00ffff"></a-light>
+        </a-entity>
       </a-entity>
     </a-scene>
 
@@ -109,54 +111,60 @@
       const debugLog = document.querySelector('#debug-log');
       const overlay = document.querySelector('#overlay');
       const uiOverlay = document.querySelector('#ui-overlay');
-      const guide = document.querySelector('#scan-guide');
+      const reticle = document.querySelector('#reticle');
       const statusText = document.querySelector('#status-text');
 
       function log(msg) {
         debugLog.innerHTML += `<br>> ${msg}`;
+        console.log("AR LOG:", msg);
       }
 
       startBtn.addEventListener('click', async () => {
-        log("PREPARING LENS...");
+        log("WAKING CAMERA...");
         startBtn.style.display = 'none';
+        
         try {
-            // First satisfy the browser's direct camera request
+            // Force browser camera check
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             stream.getTracks().forEach(t => t.stop());
             
-            // Kickstart MindAR
             const arSystem = sceneEl.systems['mindar-image-system'];
             sceneEl.play();
             arSystem.start();
-            log("SCANNER LIVE.");
-            
+            log("SCANNER LIVE. POINT AT TARGET.");
+
             setTimeout(() => {
                 overlay.style.display = 'none';
                 uiOverlay.style.display = 'block';
-                guide.style.display = 'block';
-            }, 1000);
+                reticle.style.display = 'block';
+            }, 800);
         } catch (err) {
-            log("ERROR: " + err.name);
+            log("PERMISSION DENIED: " + err.name);
             startBtn.style.display = 'block';
         }
       });
 
       sceneEl.addEventListener("targetFound", () => {
         log("GHOST DETECTED!");
-        guide.style.display = 'none';
+        reticle.style.display = 'none';
         statusText.innerText = "GHOST DETECTED!";
         statusText.style.color = "#ff4444";
         statusText.style.borderColor = "#ff4444";
-        statusText.style.boxShadow = "0 0 20px #ff4444";
+        statusText.style.boxShadow = "0 0 25px #ff4444";
       });
 
       sceneEl.addEventListener("targetLost", () => {
         log("SIGNAL LOST.");
-        guide.style.display = 'block';
-        statusText.innerText = "Searching for Ectoplasm...";
+        reticle.style.display = 'block';
+        statusText.innerText = "Scanning for Ectoplasm...";
         statusText.style.color = "#00ffff";
         statusText.style.borderColor = "rgba(0,255,255,0.4)";
         statusText.style.boxShadow = "none";
+      });
+      
+      // Error handling for data load
+      sceneEl.addEventListener("arError", (event) => {
+        log("AR ENGINE ERROR: " + event.detail.error);
       });
     </script>
   </body>
